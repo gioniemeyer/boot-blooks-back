@@ -20,4 +20,35 @@ describe("POST /sign-up", () => {
     console.log(result);
     expect(result.status).toEqual(201);
   });
+  it('returns 409 for duplicate email', async() => {
+    const body = {
+        name: 'Test',
+        email: 'test@test.br',
+        password: '1234'
+    }
+    const result = await supertest(app).post("/sign-up").send(body);
+    expect(result.status).toEqual(201);
+
+    const secondTry = await supertest(app).post("/sign-up").send(body);
+    expect(secondTry.status).toEqual(409);
+});
+ it ('returns 404 for invalidate email', async() => {
+     const body = {
+         name: 'Test',
+         email: 'test',
+         password: '1234'
+     }
+     const result = await supertest(app).post("/sign-up").send(body);
+     expect(result.status).toEqual(404);
+ });
+
+ it('returns 404 for invalidate name', async() => {
+    const body = {
+        name: 1234,
+        email: 'test@test.com',
+        password: '1234'
+}
+const result = await supertest(app).post("/sign-up").send(body);
+expect(result.status).toEqual(404);
+});
 });
