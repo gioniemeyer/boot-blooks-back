@@ -3,7 +3,7 @@ import pg from 'pg';
 const databaseConfig = {
     host: "localhost",
     port: 5432,
-    password: "123456",
+    password: "1234",
     user: "postgres",
 	database: process.env.NODE_ENV === "test" ? "boot-blooks-teste" : "boot-blooks"
 }
