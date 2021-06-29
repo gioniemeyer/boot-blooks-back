@@ -13,7 +13,7 @@ app.get("/books", async (req,res) => {
             SELECT * FROM books
         `);
 
-        res.status(200).send(result.rows[0]);
+        res.status(200).send(result.rows);
     } catch(err) {
         res.status(500).send(err);
     }
