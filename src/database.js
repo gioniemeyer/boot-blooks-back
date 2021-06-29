@@ -1,11 +1,10 @@
 import pg from 'pg';
 
 const databaseConfig = {
-    host: "localhost",
-    port: 5432,
-    password: "123456",
-    user: "postgres",
-	database: process.env.NODE_ENV === "test" ? "boot-blooks-teste" : "boot-blooks"
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 }
 
 const {Pool} = pg;
