@@ -43,5 +43,16 @@ app.post("/sign-up", async (req, res) => {
       res.sendStatus(500);
     }
   });
+app.get("/books", async (req,res) => {
+    try {
+        const result = await connection.query(`
+            SELECT * FROM books
+        `);
+
+        res.status(200).send(result.rows);
+    } catch(err) {
+        res.status(500).send(err);
+    }
+})
 
 export default app;
