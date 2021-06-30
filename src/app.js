@@ -7,18 +7,17 @@ import connection from "./database.js";
 import { SchemaSignIn } from "./schemas.js/SchemaSignIn.js";
 import { SchemaSignUp } from "./schemas.js/SchemaSignUp.js";
 import connection from './database.js'
-import dotenv from 'dotenv';
-dotenv.config();
+import loadDotEnv from './setup.js'
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/book/:id", async (req,res) => {
+app.get("/books/:id", async (req,res) => {
   try {
     let {id} = req.params;
 
-    id = parseInt(id);
+    if(!parseInt(id)) return res.sendStatus(403)
 
     const response = await connection.query(`
         SELECT * FROM books WHERE id = $1
@@ -29,7 +28,7 @@ app.get("/book/:id", async (req,res) => {
     return res.status(200).send(response.rows[0]);
   } catch(err) {
     console.log(err);
-    res.status(500).send(err);
+    return res.status(500).send(err);
   }
 });
 
@@ -43,15 +42,18 @@ app.post("/sign-up", async (req, res) => {
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
-    if (!userExists.rows[0]) {
-      const user = await connection.query(
-        `INSERT INTO users (name , email, password) VALUES ($1 ,$2, $3)`,
-        [name, email, `${passwordHash}`]
-      );
-      console.log(user.rows);
-      res.sendStatus(201);
-    } else {
-      res.sendStatus(409);
+      if (!userExists.rows[0]) {
+        const user = await connection.query(
+          `INSERT INTO users (name , email, password) VALUES ($1 ,$2, $3)`,
+          [name, email, `${passwordHash}`]
+        );
+        return res.sendStatus(201);
+      } else {
+        return res.sendStatus(409);
+      }
+    } catch (e) {
+      console.error(e);
+      return res.sendStatus(500);
     }
   } catch (e) {
     console.error(e);
@@ -108,9 +110,9 @@ app.get("/books", async (req,res) => {
           SELECT * FROM books
       `);
 
-      res.status(200).send(result.rows);
+      return res.status(200).send(result.rows);
     } catch(err) {
-      res.status(500).send(err);
+      return res.status(500).send(err);
     }
 });
 

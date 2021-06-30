@@ -1,6 +1,5 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-dotenv.config();
+import loadDotEnv from './setup.js'
 
 const databaseConfig = {
     connectionString: process.env.DATABASE_URL,
