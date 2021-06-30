@@ -7,9 +7,7 @@ const databaseConfig = {
         rejectUnauthorized: false
     }
 }
-
-const {Pool} = pg;
-
+const {Pool} = pg; 
 const connection = new Pool(databaseConfig);
 
 export default connection;
