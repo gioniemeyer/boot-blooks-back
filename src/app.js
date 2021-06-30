@@ -1,15 +1,37 @@
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
-import * as uuid from "uuid";
+import {v4 as uuid} from "uuid";
 import joi from "joi";
 import connection from "./database.js";
 import { SchemaSignIn } from "./schemas.js/SchemaSignIn.js";
 import { SchemaSignUp } from "./schemas.js/SchemaSignUp.js";
+import connection from './database.js'
+import dotenv from 'dotenv';
+dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.get("/book/:id", async (req,res) => {
+  try {
+    let {id} = req.params;
+
+    id = parseInt(id);
+
+    const response = await connection.query(`
+        SELECT * FROM books WHERE id = $1
+      `, [id]);
+
+    if(response?.rows.length === 0) return res.sendStatus(404);
+
+    return res.status(200).send(response.rows[0]);
+  } catch(err) {
+    console.log(err);
+    res.status(500).send(err);
+  }
+});
 
 app.post("/sign-up", async (req, res) => {
   const { name, email, password } = req.body;
@@ -79,5 +101,18 @@ app.get("/books", async (req, res) => {
     res.status(500).send(err);
   }
 });
+
+app.get("/books", async (req,res) => {
+    try {
+      const result = await connection.query(`
+          SELECT * FROM books
+      `);
+
+      res.status(200).send(result.rows);
+    } catch(err) {
+      res.status(500).send(err);
+    }
+});
+
 
 export default app;
