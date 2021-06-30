@@ -1,2 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config();
+
+const loadDotEnv = dotenv.config();
+
+export default loadDotEnv
