@@ -1,11 +1,12 @@
 import pg from 'pg';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const databaseConfig = {
-    host: "localhost",
-    port: 5432,
-    password: "1234",
-    user: "postgres",
-	database: process.env.NODE_ENV === "test" ? "boot-blooks-teste" : "boot-blooks"
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 }
 
 const {Pool} = pg;
