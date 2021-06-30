@@ -55,10 +55,6 @@ app.post("/sign-up", async (req, res) => {
       console.error(e);
       return res.sendStatus(500);
     }
-  } catch (e) {
-    console.error(e);
-    res.sendStatus(500);
-  }
 });
 
 app.post("/sign-in", async (req, res) => {
