@@ -33,6 +33,7 @@ describe("POST /sign-up", () => {
     const secondTry = await supertest(app).post("/sign-up").send(body);
     expect(secondTry.status).toEqual(409);
   });
+  
   it("returns 400 for invalidate email", async () => {
     const body = {
       name: "Test",
@@ -111,13 +112,14 @@ describe("POST /sign-in", () => {
     console.log(result);
     expect(result.status).toEqual(401);
   });
-  it("returns 404 for unregistered email", async () => {
+  it("returns 401 for unregistered email", async () => {
     const bodySignIn = {
       email: "test@test.com",
       password: "1234",
     };
+
     const result = await supertest(app).post("/sign-in").send(bodySignIn);
     console.log(result);
-    expect(result.status).toEqual(404);
+    expect(result.status).toEqual(401);
   });
 });
