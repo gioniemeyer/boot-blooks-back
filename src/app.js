@@ -52,15 +52,16 @@ app.post("/sign-in", async (req, res) => {
       !bcrypt.compareSync(password, userResult.rows[0].password)
     ) {
       return res.sendStatus(401);
-    }
+    }else{
     const token = uuid.v4();
     const userId = userResult.rows[0].id;
-    const username = userResult.rows[0].name;
+    const name = userResult.rows[0].name;
     await connection.query(
       `INSERT INTO "sessions" ("userId", token) VALUES ($1 ,$2)`,
       [userId, token]
     );
-    res.sendStatus(200);
+     return res.send({ name, token });
+  }
   } catch (e) {
     console.error(e);
     res.sendStatus(500);
