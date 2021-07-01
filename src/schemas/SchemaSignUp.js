@@ -1,4 +1,3 @@
-
 import joi from 'joi';
 
 const SchemaSignUp = joi.object({
