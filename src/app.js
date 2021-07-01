@@ -143,19 +143,21 @@ app.post("/cart", async (req, res) => {
 
     if(check.rows.length > 0) {
       const oldQuantity = check.rows[0].quantity;
+      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
+
       await connection.query(`
         UPDATE cart 
         SET quantity = ${oldQuantity + quantity} 
         WHERE "userId" = ${userId} AND "bookId"=${bookId}
       `)
 
-      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
     } else {
-        await connection.query(`
+      if(quantity > bookStock) return res.sendStatus(403);
+
+      await connection.query(`
         INSERT INTO cart ("userId", "bookId", quantity)
         VALUES ($1, $2, $3)
-        `, [userId, bookId, quantity]);
-        if(quantity > bookStock) return res.sendStatus(403);
+      `, [userId, bookId, quantity]);
     }
 
     return res.sendStatus(201);
@@ -208,10 +210,10 @@ app.post("/update-cart", async(req, res) => {
     const userId = session.userId;
 
     let bookStock = await connection.query(`
-    SELECT books.stock
-    FROM books
-    WHERE id = ${bookId}
-  `)
+      SELECT books.stock
+      FROM books
+      WHERE id = ${bookId}
+    `)
 
   bookStock = bookStock.rows[0].stock;
 
@@ -225,11 +227,11 @@ app.post("/update-cart", async(req, res) => {
       await connection.query(`
       DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`)
     } else {
+      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
       await connection.query(`
         UPDATE cart SET quantity = ${oldQuantity + quantity}
         WHERE "userId" = ${userId} AND "bookId" = ${bookId}
       `)
-      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
     }
 
     const response = await connection.query(`
@@ -243,6 +245,36 @@ app.post("/update-cart", async(req, res) => {
     return res.status(200).send(response.rows);
   } catch(err) {
     return res.status(500).send(err)
+  }
+});
+
+app.post("/delete-book", async(req, res) => {
+  try {
+    const authorization = req.headers['authorization'];
+    const token = authorization?.replace('Bearer ', "");
+    const {bookId} = req.body;
+
+    let session = await connection.query(`
+      SELECT * from sessions WHERE token = $1
+    `,[token]);
+
+    session = session.rows[0];
+
+    const userId = session.userId;
+
+    await connection.query(`
+      DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`);
+    
+    const response = await connection.query(`
+      SELECT books.*, cart.quantity, cart."userId" 
+      FROM cart
+      JOIN books
+      ON books.id = cart."bookId" 
+      WHERE cart."userId" = $1
+    `, [userId]);
+    return res.status(200).send(response.rows);
+} catch(err) {
+    return res.status(500).send(err);
   }
 })
 
