@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
 import {v4 as uuid} from "uuid";
-import joi from "joi";
 import { SchemaSignIn } from "./schemas/SchemaSignIn.js";
 import { SchemaSignUp } from "./schemas/SchemaSignUp.js";
 import connection from './database.js'
