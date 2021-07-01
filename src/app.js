@@ -256,6 +256,8 @@ app.post("/delete-book", async(req, res) => {
     const token = authorization?.replace('Bearer ', "");
     const {bookId} = req.body;
 
+    if(!token || !bookId) return res.sendStatus(400);
+
     let session = await connection.query(`
       SELECT * from sessions WHERE token = $1
     `,[token]);

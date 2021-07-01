@@ -234,4 +234,22 @@ describe("POST /delete-book", () => {
 
         expect(result.status).toEqual(200);
      })
+
+     it("return 400 for request without authorization", async () => {
+        const body = {bookId: 1};
+        const result = await supertest(app).post("/delete-book").send(body);
+
+        expect(result.status).toEqual(400);
+     })
+
+     it("return 400 for request with wrong body", async () => {
+        await supertest(app).post("/sign-up").send(userBody);
+        const user = await supertest(app).post("/sign-in").send(bodySignIn);
+        const token = user.body.token;
+
+        const body = {};
+        const result = await supertest(app).post("/delete-book").send(body).set('authorization',`Bearer ${token}`);
+
+        expect(result.status).toEqual(400);
+     })
 })
