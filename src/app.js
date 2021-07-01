@@ -4,8 +4,8 @@ import bcrypt from "bcrypt";
 import {v4 as uuid} from "uuid";
 import joi from "joi";
 import connection from "./database.js";
-import { SchemaSignIn } from "./schemas.js/SchemaSignIn.js";
-import { SchemaSignUp } from "./schemas.js/SchemaSignUp.js";
+import { SchemaSignIn } from "./schemas/SchemaSignIn.js";
+import { SchemaSignUp } from "./schemas/SchemaSignUp.js";
 import connection from './database.js'
 import loadDotEnv from './setup.js'
 
