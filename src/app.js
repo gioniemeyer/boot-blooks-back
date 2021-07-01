@@ -129,10 +129,25 @@ app.post("/cart", async (req, res) => {
     session = session.rows[0];
     const userId = session.userId;
 
-    await connection.query(`
-    INSERT INTO cart ("userId", "bookId", quantity)
-    VALUES ($1, $2, $3)
-    `, [userId, bookId, quantity]);
+    const check = await connection.query(`
+      SELECT * FROM cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}
+    `)
+
+    console.log(check.rows)
+
+    if(check.rows.length > 0) {
+      const oldQuantity = check.rows[0].quantity;
+      await connection.query(`
+        UPDATE cart 
+        SET quantity = ${oldQuantity + quantity} 
+        WHERE "userId" = ${userId} AND "bookId"=${bookId}
+      `)
+    } else {
+        await connection.query(`
+        INSERT INTO cart ("userId", "bookId", quantity)
+        VALUES ($1, $2, $3)
+        `, [userId, bookId, quantity]);
+    }
 
     return res.sendStatus(201);
   } catch(err) {
@@ -154,7 +169,7 @@ app.get("/cart", async (req, res) => {
     const userId = session.userId;
 
     const response = await connection.query(`
-      SELECT books.* cart.userId cart.quantity 
+      SELECT books.*, cart.quantity, cart."userId" 
       FROM cart
       JOIN books
       ON books.id = cart."bookId" 
@@ -163,6 +178,7 @@ app.get("/cart", async (req, res) => {
 
     return res.status(200).send(response.rows);
   } catch(err) {
+    console.log(err);
     return res.status(500).send(err);
   }
 });
