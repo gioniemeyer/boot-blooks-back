@@ -2,11 +2,10 @@ import express from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
 import {v4 as uuid} from "uuid";
-import joi from "joi";
 import connection from "./database.js";
-import { SchemaSignIn } from "./schemas.js/SchemaSignIn.js";
-import { SchemaSignUp } from "./schemas.js/SchemaSignUp.js";
-import connection from './database.js'
+import { SchemaSignIn } from "./schemas/SchemaSignIn.js";
+import { SchemaSignUp } from "./schemas/SchemaSignUp.js";
+import { SchemaCart } from "./schemas/SchemaCart.js";
 import loadDotEnv from './setup.js'
 
 const app = express();
@@ -34,9 +33,12 @@ app.get("/books/:id", async (req,res) => {
 
 app.post("/sign-up", async (req, res) => {
   const { name, email, password } = req.body;
+  console.log(req.body);
+
   const { error } = SchemaSignUp.validate(req.body);
-  const passwordHash = bcrypt.hashSync(password, 10);
   if (error) return res.sendStatus(400);
+
+  const passwordHash = bcrypt.hashSync(password, 10);
   try {
     const userExists = await connection.query(
       "SELECT * FROM users WHERE email = $1",
@@ -44,7 +46,8 @@ app.post("/sign-up", async (req, res) => {
     );
       if (!userExists.rows[0]) {
         const user = await connection.query(
-          `INSERT INTO users (name , email, password) VALUES ($1 ,$2, $3)`,
+          `INSERT INTO users (name , email, password) 
+          VALUES ($1 ,$2, $3)`,
           [name, email, `${passwordHash}`]
         );
         return res.sendStatus(201);
@@ -73,7 +76,7 @@ app.post("/sign-in", async (req, res) => {
     ) {
       return res.sendStatus(401);
     }else{
-    const token = uuid.v4();
+    const token = uuid();
     const userId = userResult.rows[0].id;
     const name = userResult.rows[0].name;
     await connection.query(
@@ -112,5 +115,56 @@ app.get("/books", async (req,res) => {
     }
 });
 
+app.post("/cart", async (req, res) => {
+  try {
+    const {token, bookId, quantity} = req.body;
+
+    const { error } = SchemaCart.validate(req.body);
+    if (error) return res.sendStatus(400);
+
+    let session = await connection.query(`
+      SELECT * from sessions WHERE token = $1
+    `,[token]);
+
+    session = session.rows[0];
+    const userId = session.userId;
+
+    await connection.query(`
+    INSERT INTO cart ("userId", "bookId", quantity)
+    VALUES ($1, $2, $3)
+    `, [userId, bookId, quantity]);
+
+    return res.sendStatus(201);
+  } catch(err) {
+    return res.status(500).send(err);
+  }
+});
+
+app.get("/cart", async (req, res) => {
+  try {
+    const authorization = req.headers['authorization'];
+    const token = authorization?.replace('Bearer ', "");
+
+    let session = await connection.query(`
+      SELECT * from sessions WHERE token = $1
+    `,[token]);
+
+    session = session.rows[0];
+
+    const userId = session.userId;
+
+    const response = await connection.query(`
+      SELECT books.* cart.userId cart.quantity 
+      FROM cart
+      JOIN books
+      ON books.id = cart."bookId" 
+      WHERE cart."userId" = $1
+    `, [userId]);
+
+    return res.status(200).send(response.rows);
+  } catch(err) {
+    return res.status(500).send(err);
+  }
+});
 
 export default app;
