@@ -172,6 +172,8 @@ app.get("/cart", async (req, res) => {
     const authorization = req.headers['authorization'];
     const token = authorization?.replace('Bearer ', "");
 
+    if(!token) return res.sendStatus(400);
+
     let session = await connection.query(`
       SELECT * from sessions WHERE token = $1
     `,[token]);
@@ -197,9 +199,9 @@ app.get("/cart", async (req, res) => {
 
 app.post("/update-cart", async(req, res) => {
   try {
-    const authorization = req.headers['authorization'];
-    const token = authorization?.replace('Bearer ', "");
-    const {quantity, bookId} = req.body;
+    const {token, quantity, bookId} = req.body;
+
+    if(!token || !quantity || !parseInt(bookId)) return res.sendStatus(400);
 
     let session = await connection.query(`
       SELECT * from sessions WHERE token = $1
@@ -215,7 +217,7 @@ app.post("/update-cart", async(req, res) => {
       WHERE id = ${bookId}
     `)
 
-  bookStock = bookStock.rows[0].stock;
+    bookStock = bookStock.rows[0].stock;
 
     const book = await connection.query(`
       SELECT * FROM cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}
