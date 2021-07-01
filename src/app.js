@@ -26,14 +26,12 @@ app.get("/books/:id", async (req,res) => {
 
     return res.status(200).send(response.rows[0]);
   } catch(err) {
-    console.log(err);
     return res.status(500).send(err);
   }
 });
 
 app.post("/sign-up", async (req, res) => {
   const { name, email, password } = req.body;
-  console.log(req.body);
 
   const { error } = SchemaSignUp.validate(req.body);
   if (error) return res.sendStatus(400);
@@ -130,10 +128,18 @@ app.post("/cart", async (req, res) => {
     const userId = session.userId;
 
     const check = await connection.query(`
-      SELECT * FROM cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}
+      SELECT *
+      FROM cart
+      WHERE "userId" = ${userId} AND "bookId" = ${bookId}
     `)
 
-    console.log(check.rows)
+    let bookStock = await connection.query(`
+      SELECT books.stock
+      FROM books
+      WHERE id = ${bookId}
+    `)
+
+    bookStock = bookStock.rows[0].stock
 
     if(check.rows.length > 0) {
       const oldQuantity = check.rows[0].quantity;
@@ -142,15 +148,19 @@ app.post("/cart", async (req, res) => {
         SET quantity = ${oldQuantity + quantity} 
         WHERE "userId" = ${userId} AND "bookId"=${bookId}
       `)
+
+      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
     } else {
         await connection.query(`
         INSERT INTO cart ("userId", "bookId", quantity)
         VALUES ($1, $2, $3)
         `, [userId, bookId, quantity]);
+        if(quantity > bookStock) return res.sendStatus(403);
     }
 
     return res.sendStatus(201);
   } catch(err) {
+    console.log(err)
     return res.status(500).send(err);
   }
 });
@@ -182,5 +192,58 @@ app.get("/cart", async (req, res) => {
     return res.status(500).send(err);
   }
 });
+
+app.post("/update-cart", async(req, res) => {
+  try {
+    const authorization = req.headers['authorization'];
+    const token = authorization?.replace('Bearer ', "");
+    const {quantity, bookId} = req.body;
+
+    let session = await connection.query(`
+      SELECT * from sessions WHERE token = $1
+    `,[token]);
+
+    session = session.rows[0];
+
+    const userId = session.userId;
+
+    let bookStock = await connection.query(`
+    SELECT books.stock
+    FROM books
+    WHERE id = ${bookId}
+  `)
+
+  bookStock = bookStock.rows[0].stock;
+
+    const book = await connection.query(`
+      SELECT * FROM cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}
+    `)
+
+    const oldQuantity = book.rows[0].quantity;
+
+    if(oldQuantity === 1 && quantity === -1) {
+      await connection.query(`
+      DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`)
+    } else {
+      await connection.query(`
+        UPDATE cart SET quantity = ${oldQuantity + quantity}
+        WHERE "userId" = ${userId} AND "bookId" = ${bookId}
+      `)
+      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
+    }
+
+    const response = await connection.query(`
+      SELECT books.*, cart.quantity, cart."userId" 
+      FROM cart
+      JOIN books
+      ON books.id = cart."bookId" 
+      WHERE cart."userId" = $1
+    `, [userId]);
+
+    return res.status(200).send(response.rows);
+  } catch(err) {
+    return res.status(500).send(err)
+  }
+})
 
 export default app;
