@@ -3,7 +3,6 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import {v4 as uuid} from "uuid";
 import joi from "joi";
-import connection from "./database.js";
 import { SchemaSignIn } from "./schemas/SchemaSignIn.js";
 import { SchemaSignUp } from "./schemas/SchemaSignUp.js";
 import connection from './database.js'
@@ -112,5 +111,21 @@ app.get("/books", async (req,res) => {
     }
 });
 
+app.post("/sign-out", async (req, res) => {
+    const authorization = req.headers["authorization"];
+    const token = authorization?.replace("Bearer ", "");
+    if (!token) return res.sendStatus(401);
+    try {
+      await connection.query(
+        `DELETE FROM "sessions" 
+         WHERE token = $1`,
+        [token]
+      );
+      return res.sendStatus(204);
+    } catch (e) {
+      console.log(e);
+      return res.sendStatus(500);
+    }
+  });
 
 export default app;
