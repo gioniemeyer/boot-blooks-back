@@ -83,7 +83,6 @@ describe("POST /conclusion", () => {
             quantity: 1
         }
 
-
         await supertest(app).post("/cart").send(cartBody);
         await supertest(app).post("/cart").send(cartBody2);
 

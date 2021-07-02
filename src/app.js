@@ -412,6 +412,4 @@ app.post('/conclusion', async (req, res) => {
   }
 })
 
->>>>>>> main
-
 export default app;
