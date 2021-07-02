@@ -7,7 +7,7 @@ afterAll(() => {
   connection.end();
 });
 
-   describe("DELETE /logout",()=>{
+    describe("DELETE /logout",()=>{
     beforeEach(async()=>{
         await connection.query(`DELETE FROM sessions`);
         await connection.query(`DELETE FROM users`);

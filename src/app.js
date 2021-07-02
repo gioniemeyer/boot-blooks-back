@@ -333,18 +333,6 @@ app.post("/delete-book", async (req, res) => {
   }
 });
 
-app.get("/categories", async (req, res) => {
-  try {
-    const result = await connection.query(`
-            SELECT * FROM categories
-        `);
-
-    res.status(200).send(result.rows);
-  } catch (err) {
-    res.status(500).send(err);
-  }
-});
-
 app.get("/sessions", async (req, res) => {
   try {
     const result = await connection.query(`
@@ -411,5 +399,6 @@ app.post('/conclusion', async (req, res) => {
     return res.status(500).send(err);
   }
 })
+
 
 export default app;
