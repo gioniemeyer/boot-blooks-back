@@ -90,6 +90,8 @@ app.post("/sign-in", async (req, res) => {
   }
 });
 
+
+
 app.get("/books", async (req, res) => {
   try {
     const result = await connection.query(`
@@ -319,6 +321,18 @@ app.post("/delete-book", async (req, res) => {
     return res.status(200).send(response.rows);
   } catch (err) {
     return res.status(500).send(err);
+  }
+});
+
+app.get("/categories", async (req, res) => {
+  try {
+    const result = await connection.query(`
+            SELECT * FROM categories
+        `);
+
+    res.status(200).send(result.rows);
+  } catch (err) {
+    res.status(500).send(err);
   }
 });
 
