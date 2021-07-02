@@ -8,6 +8,7 @@ import { SchemaSignUp } from "./schemas/SchemaSignUp.js";
 import { SchemaCart } from "./schemas/SchemaCart.js";
 import loadDotEnv from "./setup.js";
 
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -48,16 +49,15 @@ app.post("/sign-up", async (req, res) => {
       const user = await connection.query(
         `INSERT INTO users (name , email, password) 
           VALUES ($1 ,$2, $3)`,
-        [name, email, `${passwordHash}`]
-      );
-      return res.sendStatus(201);
-    } else {
-      return res.sendStatus(409);
+          [name, email, `${passwordHash}`]
+        );
+        return res.sendStatus(201);
+      } else {
+        return res.sendStatus(409);
+      }
+    } catch (e) {
+      return res.sendStatus(500);
     }
-  } catch (e) {
-    console.error(e);
-    return res.sendStatus(500);
-  }
 });
 
 app.post("/sign-in", async (req, res) => {
@@ -85,7 +85,6 @@ app.post("/sign-in", async (req, res) => {
       return res.send({ name, token });
     }
   } catch (e) {
-    console.error(e);
     res.sendStatus(500);
   }
 });
@@ -183,8 +182,7 @@ app.post("/cart", async (req, res) => {
     }
 
     return res.sendStatus(201);
-  } catch (err) {
-    console.log(err);
+  } catch(err) {
     return res.status(500).send(err);
   }
 });
@@ -205,7 +203,7 @@ app.get("/cart", async (req, res) => {
 
     session = session.rows[0];
 
-    const userId = session.userId;
+    const userId = session?.userId;
 
     const response = await connection.query(
       `
@@ -219,9 +217,8 @@ app.get("/cart", async (req, res) => {
     );
 
     return res.status(200).send(response.rows);
-  } catch (err) {
-    console.log(err);
-    return res.status(500).send(err);
+  } catch(err) {
+     return res.status(500).send(err);
   }
 });
 
@@ -240,7 +237,7 @@ app.post("/update-cart", async (req, res) => {
 
     session = session.rows[0];
 
-    const userId = session.userId;
+    const userId = session?.userId;
 
     let bookStock = await connection.query(`
       SELECT books.stock
@@ -301,7 +298,7 @@ app.post("/delete-book", async (req, res) => {
 
     session = session.rows[0];
 
-    const userId = session.userId;
+    const userId = session?.userId;
 
     await connection.query(`
       DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`);
@@ -336,7 +333,7 @@ app.post('/conclusion', async (req, res) => {
     `,[token]);
 
     session = session.rows[0];
-    const userId = session.userId;
+    const userId = session?.userId;
    
     let cart = await connection.query(`
       SELECT cart.*, books.price, books.stock
@@ -358,7 +355,6 @@ app.post('/conclusion', async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6)`,[userId, cart[i].bookId, cart[i].quantity, cart[i].quantity * cart[i].price, body.paymentMethod, body.receiveMethod])    
       
       const newStock = cart[i].stock - cart[i].quantity
-      console.log(newStock)
       await connection.query(`
         UPDATE books
         SET stock = ${newStock}
@@ -375,7 +371,34 @@ app.post('/conclusion', async (req, res) => {
   } catch(err) {
     return res.status(500).send(err);
   }
-})
+});
+
+app.get('/myrequests', async (req, res) => {
+  try {
+    const authorization = req.headers['authorization'];
+    const token = authorization?.replace('Bearer ', "");
+    if(!token) return res.sendStatus(400);
+
+    let session = await connection.query(`
+    SELECT * from sessions WHERE token = $1
+  `,[token]);
+
+    session = session.rows[0];
+    const userId = session?.userId;
+    
+    const response = await connection.query(`
+      SELECT shops.*, books.* 
+      FROM shops
+      JOIN books
+      ON books.id = shops."bookId" 
+      WHERE shops."userId" = $1
+    `, [userId])
+    return res.status(200).send(response.rows);
+  } catch(err) {
+    return res.status(500).send(err)
+  }
+  });
+
 
 
 export default app;
