@@ -352,7 +352,7 @@ app.get('/myrequests', async (req, res) => {
       ON books.id = shops."bookId" 
       WHERE shops."userId" = $1
     `, [userId])
-    return res.send(response.rows);
+    return res.status(200).send(response.rows);
   } catch(err) {
     return res.status(500).send(err)
   }
