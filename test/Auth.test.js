@@ -2,9 +2,11 @@ import app from "../src/app.js";
 import jest from "jest";
 import supertest from "supertest";
 import connection from "../src/database.js";
+import bcrypt from "bcrypt";
 
 beforeEach(async () => {
   await connection.query("DELETE FROM users");
+  await connection.query("DELETE FROM sessions");
   
 });
 afterAll(() => {
@@ -122,4 +124,32 @@ describe("POST /sign-in", () => {
      console.log(result.status);
      expect(result.status).toEqual(404);
    });
+
+
+
+   it("returns a valid session token with status 200 for valid email and password",async ()=>{
+    const hash= bcrypt.hashSync('1234',10);
+    await connection.query("DELETE FROM sessions");
+
+    await connection.query(`INSERT INTO users (name,email,password)
+    VALUES ($1,$2,$3)`,['teste','test@test.com',hash]);
+
+    const body= {
+                 email:"test@test.com",
+                 password:"1234"
+                };
+
+    const beforeSessions=await connection.query(`Select * FROM sessions`);
+    expect(beforeSessions.rows[0]).toEqual(undefined);
+
+    const result=await supertest(app).post("/sign-in").send(body);
+
+    const afterSessions= await connection.query(`Select * FROM sessions`);
+    expect(afterSessions.rows.length).toEqual(1);
+    
+    const session=afterSessions.rows[0];
+    console.log(session.token)
+    expect(result.body.token).toEqual(session.token);
+    expect(result.status).toEqual(200)
+  });
 });
