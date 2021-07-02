@@ -1,61 +1,63 @@
 import express from "express";
 import cors from "cors";
 import bcrypt from "bcrypt";
-import {v4 as uuid} from "uuid";
+import { v4 as uuid } from "uuid";
 import connection from "./database.js";
 import { SchemaSignIn } from "./schemas/SchemaSignIn.js";
 import { SchemaSignUp } from "./schemas/SchemaSignUp.js";
 import { SchemaCart } from "./schemas/SchemaCart.js";
-import loadDotEnv from './setup.js'
+import loadDotEnv from "./setup.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/books/:id", async (req,res) => {
+app.get("/books/:id", async (req, res) => {
   try {
-    let {id} = req.params;
+    let { id } = req.params;
 
-    if(!parseInt(id)) return res.sendStatus(403)
+    if (!parseInt(id)) return res.sendStatus(403);
 
-    const response = await connection.query(`
+    const response = await connection.query(
+      `
         SELECT * FROM books WHERE id = $1
-      `, [id]);
+      `,
+      [id]
+    );
 
-    if(response?.rows.length === 0) return res.sendStatus(404);
+    if (response?.rows.length === 0) return res.sendStatus(404);
 
     return res.status(200).send(response.rows[0]);
-  } catch(err) {
+  } catch (err) {
     return res.status(500).send(err);
   }
 });
 
 app.post("/sign-up", async (req, res) => {
   const { name, email, password } = req.body;
-
   const { error } = SchemaSignUp.validate(req.body);
-  if (error) return res.sendStatus(400);
 
+  if (error) return res.sendStatus(400);
   const passwordHash = bcrypt.hashSync(password, 10);
   try {
     const userExists = await connection.query(
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
-      if (!userExists.rows[0]) {
-        const user = await connection.query(
-          `INSERT INTO users (name , email, password) 
+    if (!userExists.rows[0]) {
+      const user = await connection.query(
+        `INSERT INTO users (name , email, password) 
           VALUES ($1 ,$2, $3)`,
-          [name, email, `${passwordHash}`]
-        );
-        return res.sendStatus(201);
-      } else {
-        return res.sendStatus(409);
-      }
-    } catch (e) {
-      console.error(e);
-      return res.sendStatus(500);
+        [name, email, `${passwordHash}`]
+      );
+      return res.sendStatus(201);
+    } else {
+      return res.sendStatus(409);
     }
+  } catch (e) {
+    console.error(e);
+    return res.sendStatus(500);
+  }
 });
 
 app.post("/sign-in", async (req, res) => {
@@ -68,21 +70,20 @@ app.post("/sign-in", async (req, res) => {
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
-    if (
-      !userResult.rows[0] ||
-      !bcrypt.compareSync(password, userResult.rows[0].password)
-    ) {
+    if (!userResult.rows[0]) {
+      return res.sendStatus(404);
+    } else if (!bcrypt.compareSync(password, userResult.rows[0].password)) {
       return res.sendStatus(401);
-    }else{
-    const token = uuid();
-    const userId = userResult.rows[0].id;
-    const name = userResult.rows[0].name;
-    await connection.query(
-      `INSERT INTO "sessions" ("userId", token) VALUES ($1 ,$2)`,
-      [userId, token]
-    );
-     return res.send({ name, token });
-  }
+    } else {
+      const token = uuid();
+      const userId = userResult.rows[0].id;
+      const name = userResult.rows[0].name;
+      await connection.query(
+        `INSERT INTO "sessions" ("userId", token) VALUES ($1 ,$2)`,
+        [userId, token]
+      );
+      return res.send({ name, token });
+    }
   } catch (e) {
     console.error(e);
     res.sendStatus(500);
@@ -101,28 +102,47 @@ app.get("/books", async (req, res) => {
   }
 });
 
-app.get("/books", async (req,res) => {
-    try {
-      const result = await connection.query(`
+app.get("/books", async (req, res) => {
+  try {
+    const result = await connection.query(`
           SELECT * FROM books
       `);
 
-      return res.status(200).send(result.rows);
-    } catch(err) {
-      return res.status(500).send(err);
-    }
+    return res.status(200).send(result.rows);
+  } catch (err) {
+    return res.status(500).send(err);
+  }
 });
 
+app.post("/sign-out", async (req, res) => {
+  const authorization = req.headers["authorization"];
+  const token = authorization?.replace("Bearer ", "");
+  if (!token) return res.sendStatus(401);
+  try {
+    await connection.query(
+      `DELETE FROM "sessions" 
+         WHERE token = $1`,
+      [token]
+    );
+    return res.sendStatus(204);
+  } catch (e) {
+    console.log(e);
+    return res.sendStatus(500);
+  }
+});
 app.post("/cart", async (req, res) => {
   try {
-    const {token, bookId, quantity} = req.body;
+    const { token, bookId, quantity } = req.body;
 
     const { error } = SchemaCart.validate(req.body);
     if (error) return res.sendStatus(400);
 
-    let session = await connection.query(`
+    let session = await connection.query(
+      `
       SELECT * from sessions WHERE token = $1
-    `,[token]);
+    `,
+      [token]
+    );
 
     session = session.rows[0];
     const userId = session.userId;
@@ -131,81 +151,92 @@ app.post("/cart", async (req, res) => {
       SELECT *
       FROM cart
       WHERE "userId" = ${userId} AND "bookId" = ${bookId}
-    `)
+    `);
 
     let bookStock = await connection.query(`
       SELECT books.stock
       FROM books
       WHERE id = ${bookId}
-    `)
+    `);
 
-    bookStock = bookStock.rows[0].stock
+    bookStock = bookStock.rows[0].stock;
 
-    if(check.rows.length > 0) {
+    if (check.rows.length > 0) {
       const oldQuantity = check.rows[0].quantity;
-      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
+      if (oldQuantity + quantity > bookStock) return res.sendStatus(403);
 
       await connection.query(`
         UPDATE cart 
         SET quantity = ${oldQuantity + quantity} 
         WHERE "userId" = ${userId} AND "bookId"=${bookId}
-      `)
-
+      `);
     } else {
-      if(quantity > bookStock) return res.sendStatus(403);
+      if (quantity > bookStock) return res.sendStatus(403);
 
-      await connection.query(`
+      await connection.query(
+        `
         INSERT INTO cart ("userId", "bookId", quantity)
         VALUES ($1, $2, $3)
-      `, [userId, bookId, quantity]);
+      `,
+        [userId, bookId, quantity]
+      );
     }
 
     return res.sendStatus(201);
-  } catch(err) {
-    console.log(err)
+  } catch (err) {
+    console.log(err);
     return res.status(500).send(err);
   }
 });
 
 app.get("/cart", async (req, res) => {
   try {
-    const authorization = req.headers['authorization'];
-    const token = authorization?.replace('Bearer ', "");
+    const authorization = req.headers["authorization"];
+    const token = authorization?.replace("Bearer ", "");
 
-    if(!token) return res.sendStatus(400);
+    if (!token) return res.sendStatus(400);
 
-    let session = await connection.query(`
+    let session = await connection.query(
+      `
       SELECT * from sessions WHERE token = $1
-    `,[token]);
+    `,
+      [token]
+    );
 
     session = session.rows[0];
 
     const userId = session.userId;
 
-    const response = await connection.query(`
+    const response = await connection.query(
+      `
       SELECT books.*, cart.quantity, cart."userId" 
       FROM cart
       JOIN books
       ON books.id = cart."bookId" 
       WHERE cart."userId" = $1
-    `, [userId]);
+    `,
+      [userId]
+    );
 
     return res.status(200).send(response.rows);
-  } catch(err) {
+  } catch (err) {
     console.log(err);
     return res.status(500).send(err);
   }
 });
 
-app.post("/update-cart", async(req, res) => {
+app.post("/update-cart", async (req, res) => {
   try {
-    const {token, quantity, bookId} = req.body;
+    const { token, quantity, bookId } = req.body;
 
-    if(!token || !quantity || !parseInt(bookId)) return res.sendStatus(400);
+    if (!token || !quantity || !parseInt(bookId)) return res.sendStatus(400);
 
-    let session = await connection.query(`
+    let session = await connection.query(
+      `
       SELECT * from sessions WHERE token = $1
-    `,[token]);
+    `,
+      [token]
+    );
 
     session = session.rows[0];
 
@@ -215,52 +246,58 @@ app.post("/update-cart", async(req, res) => {
       SELECT books.stock
       FROM books
       WHERE id = ${bookId}
-    `)
+    `);
 
     bookStock = bookStock.rows[0].stock;
 
     const book = await connection.query(`
       SELECT * FROM cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}
-    `)
+    `);
 
     const oldQuantity = book.rows[0].quantity;
 
-    if(oldQuantity === 1 && quantity === -1) {
+    if (oldQuantity === 1 && quantity === -1) {
       await connection.query(`
-      DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`)
+      DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`);
     } else {
-      if(oldQuantity + quantity > bookStock) return res.sendStatus(403);
+      if (oldQuantity + quantity > bookStock) return res.sendStatus(403);
       await connection.query(`
         UPDATE cart SET quantity = ${oldQuantity + quantity}
         WHERE "userId" = ${userId} AND "bookId" = ${bookId}
-      `)
+      `);
     }
 
-    const response = await connection.query(`
+    const response = await connection.query(
+      `
       SELECT books.*, cart.quantity, cart."userId" 
       FROM cart
       JOIN books
       ON books.id = cart."bookId" 
       WHERE cart."userId" = $1
-    `, [userId]);
+    `,
+      [userId]
+    );
 
     return res.status(200).send(response.rows);
-  } catch(err) {
-    return res.status(500).send(err)
+  } catch (err) {
+    return res.status(500).send(err);
   }
 });
 
-app.post("/delete-book", async(req, res) => {
+app.post("/delete-book", async (req, res) => {
   try {
-    const authorization = req.headers['authorization'];
-    const token = authorization?.replace('Bearer ', "");
-    const {bookId} = req.body;
+    const authorization = req.headers["authorization"];
+    const token = authorization?.replace("Bearer ", "");
+    const { bookId } = req.body;
 
-    if(!token || !bookId) return res.sendStatus(400);
+    if (!token || !bookId) return res.sendStatus(400);
 
-    let session = await connection.query(`
+    let session = await connection.query(
+      `
       SELECT * from sessions WHERE token = $1
-    `,[token]);
+    `,
+      [token]
+    );
 
     session = session.rows[0];
 
@@ -268,19 +305,23 @@ app.post("/delete-book", async(req, res) => {
 
     await connection.query(`
       DELETE from cart WHERE "userId" = ${userId} AND "bookId" = ${bookId}`);
-    
-    const response = await connection.query(`
+
+    const response = await connection.query(
+      `
       SELECT books.*, cart.quantity, cart."userId" 
       FROM cart
       JOIN books
       ON books.id = cart."bookId" 
       WHERE cart."userId" = $1
-    `, [userId]);
+    `,
+      [userId]
+    );
     return res.status(200).send(response.rows);
-} catch(err) {
+  } catch (err) {
     return res.status(500).send(err);
   }
 });
+
 
 app.post('/conclusion', async (req, res) => {
   try {
@@ -335,5 +376,6 @@ app.post('/conclusion', async (req, res) => {
     return res.status(500).send(err);
   }
 })
+
 
 export default app;
