@@ -44,17 +44,17 @@ app.post("/sign-up", async (req, res) => {
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
-    if (!userExists.rows[0] ) {
-      const user = await connection.query(
+    if (userExists.rows[0]) {
+      return res.sendStatus(409);
+    } 
+      await connection.query(
         `INSERT INTO users (name , email, password) 
           VALUES ($1 ,$2, $3)`,
         [name, email, `${passwordHash}`]
       );
       
       return res.sendStatus(201);
-    } else {
-      return res.sendStatus(409);
-    }
+    
   } catch (e) {
     console.error(e);
     return res.sendStatus(500);
@@ -117,17 +117,25 @@ app.get("/books", async (req, res) => {
   }
 });
 
-app.post("/sign-out", async (req, res) => {
+app.delete("/sign-out", async (req, res) => {
   const authorization = req.headers["authorization"];
   const token = authorization?.replace("Bearer ", "");
-  if (!token) return res.sendStatus(401);
+  if (!token) return res.sendStatus(400);
   try {
-    await connection.query(
-      `DELETE FROM "sessions" 
+    const result = await connection.query(
+      `SELECT * FROM "sessions" 
          WHERE token = $1`,
       [token]
     );
-    return res.sendStatus(204);
+    if (result.rows.length === 0) {
+      return res.sendStatus(404);
+    }
+    await connection.query(
+      `DELETE FROM sessions 
+      WHERE token=$1`,
+      [token]
+    );
+    return res.sendStatus(200);
   } catch (e) {
     console.log(e);
     return res.sendStatus(500);
@@ -329,6 +337,18 @@ app.get("/categories", async (req, res) => {
   try {
     const result = await connection.query(`
             SELECT * FROM categories
+        `);
+
+    res.status(200).send(result.rows);
+  } catch (err) {
+    res.status(500).send(err);
+  }
+});
+
+app.get("/sessions", async (req, res) => {
+  try {
+    const result = await connection.query(`
+            SELECT * FROM sessions
         `);
 
     res.status(200).send(result.rows);

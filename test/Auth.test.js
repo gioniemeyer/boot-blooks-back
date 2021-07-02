@@ -19,7 +19,7 @@ describe("POST /sign-up", () => {
       password: "1234",
     };
     const result = await supertest(app).post("/sign-up").send(body);
-    console.log(result);
+    console.log(result.status);
     expect(result.status).toEqual(201);
   });
   it("returns 409 for duplicate email", async () => {
@@ -28,10 +28,9 @@ describe("POST /sign-up", () => {
       email: "test@test.com",
       password: "1234",
     };
-    const result = await supertest(app).post("/sign-up").send(body);
-    expect(result.status).toEqual(201);
-
+    await supertest(app).post("/sign-up").send(body);
     const secondTry = await supertest(app).post("/sign-up").send(body);
+    console.log(secondTry.status);
     expect(secondTry.status).toEqual(409);
   });
   
@@ -79,7 +78,7 @@ describe("POST /sign-in", () => {
     };
     await supertest(app).post("/sign-up").send(bodySignUp);
     const result = await supertest(app).post("/sign-in").send(bodySignIn);
-    //console.log(result);
+    console.log(result.status);
     expect(result.status).toEqual(200);
   });
   it("returns 400 for invalid params", async () => {
@@ -94,7 +93,7 @@ describe("POST /sign-in", () => {
     };
     await supertest(app).post("/sign-up").send(bodySignUp);
     const result = await supertest(app).post("/sign-in").send(bodySignIn);
-    //console.log(result);
+    console.log(result.status);
     expect(result.status).toEqual(400);
   });
 
@@ -110,17 +109,17 @@ describe("POST /sign-in", () => {
     };
     await supertest(app).post("/sign-up").send(bodySignUp);
     const result = await supertest(app).post("/sign-in").send(bodySignIn);
-    //console.log(result);
+    console.log(result.status);
     expect(result.status).toEqual(401);
   });
    it("returns 404 for unregistered email", async () => {
 
      const bodySignIn = {
-       email: "testfff@test.com",
+       email: "emailnaoregistrado@test.com",
        password: "1234",
      };
      const result = await supertest(app).post("/sign-in").send(bodySignIn);
-     //console.log(result);
+     console.log(result.status);
      expect(result.status).toEqual(404);
    });
 });
