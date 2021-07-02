@@ -280,6 +280,60 @@ app.post("/delete-book", async(req, res) => {
 } catch(err) {
     return res.status(500).send(err);
   }
+});
+
+app.post('/conclusion', async (req, res) => {
+  try {
+    const authorization = req.headers['authorization'];
+    const token = authorization?.replace('Bearer ', "");
+    const body = req.body;
+
+    if(!token) return res.sendStatus(400);
+
+    let session = await connection.query(`
+      SELECT * from sessions WHERE token = $1
+    `,[token]);
+
+    session = session.rows[0];
+    const userId = session.userId;
+   
+    let cart = await connection.query(`
+      SELECT cart.*, books.price, books.stock
+      FROM cart
+      JOIN books
+      ON books.id = cart."bookId"
+      WHERE cart."userId" = $1   
+    `, [userId])
+
+    cart = cart.rows;
+    
+    for(let i = 0; i < cart.length; i++) {
+      if(cart[i].stock < cart[i].quantity) return res.send(403);
+    }
+
+    for(let i = 0; i < cart.length; i++) {
+      await connection.query(`
+        INSERT INTO shops ("userId", "bookId", quantity, cost, "paymentMethod", "receiveMethod")
+        VALUES ($1, $2, $3, $4, $5, $6)`,[userId, cart[i].bookId, cart[i].quantity, cart[i].quantity * cart[i].price, body.paymentMethod, body.receiveMethod])    
+      
+      const newStock = cart[i].stock - cart[i].quantity
+      console.log(newStock)
+      await connection.query(`
+        UPDATE books
+        SET stock = ${newStock}
+        WHERE id = ${cart[i].bookId}
+      `)
+    }
+
+    await connection.query(`
+      DELETE FROM cart WHERE "userId" = ${userId} 
+    `)
+
+    res.sendStatus(201);
+
+  } catch(err) {
+    return res.status(500).send(err);
+  }
 })
 
 export default app;
