@@ -44,12 +44,13 @@ app.post("/sign-up", async (req, res) => {
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
-    if (!userExists.rows[0]) {
+    if (!userExists.rows[0] ) {
       const user = await connection.query(
         `INSERT INTO users (name , email, password) 
           VALUES ($1 ,$2, $3)`,
         [name, email, `${passwordHash}`]
       );
+      
       return res.sendStatus(201);
     } else {
       return res.sendStatus(409);
